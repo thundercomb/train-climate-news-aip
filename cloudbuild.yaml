@@ -1,0 +1,31 @@
+steps:
+- name: 'gcr.io/cloud-builders/docker'
+  args: ['build', '-t', 'eu.gcr.io/${_ANALYTICS_PROJECT}/${_IMAGE_NAME}', '.']
+  dir: /workspace/app
+
+- name: 'gcr.io/cloud-builders/docker'
+  args: ['push', 'eu.gcr.io/${_ANALYTICS_PROJECT}/${_IMAGE_NAME}']
+
+- name: 'gcr.io/cloud-builders/gcloud'
+  entrypoint: /bin/sh
+  args:
+    - '-c'
+    - |
+        gcloud ai-platform jobs submit training $JOB_NAME \
+          --package-path trainer/ \
+          --module-name trainer.task \
+          --region ${_REGION} \
+          --python-version 3.7 \
+          --runtime-version 1.15 \
+          --job-dir $JOB_DIR \
+          --stream-logs
+
+substitutions:
+  _IMAGE_NAME: train-climate-news
+
+options:
+  env:
+  - JOB_NAME="${REPO_NAME}"
+  - JOB_DIR="gs://${_ANALYTICS_PROJECT}-models/aip"
+
+timeout: 1800s
